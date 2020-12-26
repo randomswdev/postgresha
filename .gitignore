@@ -1,1 +1,5 @@
 .vagrant/*
+
+provisioning/roles/*
+!provisioning/roles/requirements.yml
+

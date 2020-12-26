@@ -6,12 +6,13 @@
   - name: print debug info
     debug: var=inventory_hostname
 
-- name: Install Services
-  hosts: services
+- name: Install Consul
+  hosts: consul_instances
+  any_errors_fatal: true
   become: true
-  tasks:
-  - name: print debug info
-    debug: var=inventory_hostname
+  become_user: root
+  roles:
+  - brianshumate.consul
 
 - name: Install Postgres
   hosts: postgres
