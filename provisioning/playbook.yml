@@ -1,0 +1,21 @@
+---
+- name: Gather facts
+  hosts: all
+  become: true
+  tasks:
+  - name: print debug info
+    debug: var=inventory_hostname
+
+- name: Install Services
+  hosts: services
+  become: true
+  tasks:
+  - name: print debug info
+    debug: var=inventory_hostname
+
+- name: Install Postgres
+  hosts: postgres
+  become: true
+  tasks:
+  - name: print debug info
+    debug: var=inventory_hostname
