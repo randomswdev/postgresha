@@ -1,11 +1,4 @@
 ---
-- name: Gather facts
-  hosts: all
-  become: true
-  tasks:
-  - name: print debug info
-    debug: var=inventory_hostname
-
 - name: Install Consul
   hosts: consul_instances
   any_errors_fatal: true
@@ -14,9 +7,82 @@
   roles:
   - brianshumate.consul
 
-- name: Install Postgres
+- name: Install Patroni
   hosts: postgres
   become: true
+  pre_tasks:
+  - name: "Disable the postgresql:{{ patroni_postgresql_version }} stream"
+    shell:
+      cmd: "dnf module disable -y postgresql:{{ patroni_postgresql_version }}"
+      warn: false
+  - name: Install pip3
+    yum:
+      name: python3-pip
+      state: present
+  - name: Remove the psycopg2 package (conflicts with patronictl)
+    pip:
+      name: psycopg2
+      state: absent
+  - name: Install the psycopg2-binary package (to replace the previous one)
+    pip:
+      name: psycopg2-binary
+      state: present
+
+  - name: Create common entries of the pg_hba list
+    set_fact:
+      patroni_bootstrap_dcs_postgresql_pg_hba:
+      - type: "local"
+        database: "all"
+        user: "all"
+        method: "trust"
+      - type: "host"
+        database: "all"
+        user: "all"
+        address: "0.0.0.0/0"
+        method: "md5"
+  - name: Create the pg_hba list
+    with_items: "{{groups['postgres']}}"
+    set_fact:
+      patroni_bootstrap_dcs_postgresql_pg_hba: "{{ patroni_bootstrap_dcs_postgresql_pg_hba|default([]) + [ pg_hba_line ] }}"
+    vars:
+      pg_hba_line:
+        type:  "host"
+        database: "all"
+        user: "{{ patroni_replication_username }}"
+        address: '{{ hostvars[item]["ansible_" + service_iface]["ipv4"]["address"]}}/32'
+        method: "md5"        
+
+  - name: Create the user list
+    with_items: "{{groups['postgres']}}"
+    set_fact:
+      patroni_bootstrap_users:
+      - { name: "{{ patroni_superuser_username }}",   password: "{{ patroni_superuser_password }}",   options: [] }
+      - { name: "{{ patroni_replication_username }}", password: "{{ patroni_replication_password }}", options: ['replication','createrole'] }
+  
+  roles:
+  - kostiantyn-nemchenko.patroni
+
+- name: Setup HA proxy
+  hosts: services
+  become: true
   tasks:
-  - name: print debug info
-    debug: var=inventory_hostname
+  - name: Install HA proxy and various tools
+    yum:
+      name:
+      - haproxy
+      - libsemanage-python
+      state: present
+  - name: Create the HA proxy config file
+    template:
+      src: templates/haproxy.cfg.j2
+      dest: /etc/haproxy/haproxy.cfg
+  - name: Configure selinux
+    seboolean:
+      name: haproxy_connect_any
+      state: yes
+      persistent: yes
+  - name: Start HA proxy
+    service:
+      name: haproxy
+      enabled: true
+      state: restarted
