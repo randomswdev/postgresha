@@ -39,7 +39,16 @@
         database: "all"
         user: "all"
         address: "0.0.0.0/0"
-        method: "md5"
+        method: "password"
+      - type: "local"
+        database: "replication"
+        user: "{{ patroni_replication_username }}"
+        method: "trust"
+      - type: "host"
+        database: "replication"
+        user: "{{ patroni_replication_username }}"
+        address: "127.0.0.1/32"
+        method: "password"      
   - name: Create the pg_hba list
     with_items: "{{groups['postgres']}}"
     set_fact:
@@ -47,17 +56,17 @@
     vars:
       pg_hba_line:
         type:  "host"
-        database: "all"
+        database: "replication"
         user: "{{ patroni_replication_username }}"
         address: '{{ hostvars[item]["ansible_" + service_iface]["ipv4"]["address"]}}/32'
-        method: "md5"        
+        method: "password"        
 
   - name: Create the user list
     with_items: "{{groups['postgres']}}"
     set_fact:
       patroni_bootstrap_users:
       - { name: "{{ patroni_superuser_username }}",   password: "{{ patroni_superuser_password }}",   options: [] }
-      - { name: "{{ patroni_replication_username }}", password: "{{ patroni_replication_password }}", options: ['replication','createrole'] }
+      - { name: "{{ patroni_replication_username }}", password: "{{ patroni_replication_password }}", options: ['replication','createrole','createdb'] }
   
   roles:
   - kostiantyn-nemchenko.patroni
