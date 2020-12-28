@@ -1,4 +1,17 @@
 ---
+- name: Update and reboot all the systems
+  hosts: all
+  become: true
+  tasks:
+  - name: Update all package
+    yum:
+      name: "*"
+      state: latest
+    register: update_result
+  - name: Reboot the systems
+    reboot:
+    when: update_result.changed
+
 - name: Install Consul
   hosts: consul_instances
   any_errors_fatal: true
@@ -95,3 +108,30 @@
       name: haproxy
       enabled: true
       state: restarted
+
+- name: Preparing postgres benchmark
+  hosts: services
+  become: true
+  tasks:
+  - name: Install pgbench
+    yum:
+      name:
+      - postgresql-contrib
+      state: present
+  - name: Output usage information
+    debug:
+      msg:
+      - "****************************************************************************"
+      - "Run the tests using the following commands:"
+      - "pgbench -i -s 50 -h {{hostvars[groups['services'][0]]['ansible_' + service_iface]['ipv4']['address']}} -U {{hostvars[groups['postgres'][0]]['patroni_superuser_username']}}"
+      - "pgbench -c 10 -j 2 -t 10000 -h {{hostvars[groups['services'][0]]['ansible_' + service_iface]['ipv4']['address']}} -U {{hostvars[groups['postgres'][0]]['patroni_superuser_username']}}"
+      - ""
+      - "When prompted for the password, once ofr each command, enter:"
+      - "{{hostvars[groups['postgres'][0]]['patroni_superuser_password']}}"
+      - ""
+      - "Monitor haproxy statistics at:"
+      - "http://{{hostvars[groups['services'][0]]['ansible_' + service_iface]['ipv4']['address']}}:7000"
+      - ""
+      - "While running the test, if you stop the leader, the test fails. If you stop"
+      - "a replica, the test continues."
+      - "****************************************************************************"

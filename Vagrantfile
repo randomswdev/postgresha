@@ -11,7 +11,7 @@ Vagrant.configure(2) do |config|
   config.hostmanager.manage_host = false
   config.hostmanager.manage_guest = true
   config.hostmanager.ignore_private_ip = false
-  config.hostmanager.include_offline = true
+  config.hostmanager.include_offline = false
   
   # vagrant plugin install vagrant-proxyconf
   if Vagrant.has_plugin?("vagrant-proxyconf")
@@ -65,8 +65,11 @@ Vagrant.configure(2) do |config|
 
             "patroni_postgresql_version" => "9.6",
             "patroni_postgresql_connect_address" => "{{ ansible_facts['#{service_iface}'].ipv4.address }}:5432",
-            "patroni_replication_password" => "#{patroni_replication_password}",
+
+            "patroni_superuser_username" => "postgres",
             "patroni_superuser_password" => "#{patroni_superuser_password}",
+
+            "patroni_replication_password" => "#{patroni_replication_password}",
 
             "patroni_restapi_connect_address" => "{{ ansible_facts['#{service_iface}'].ipv4.address }}:8008",
 
@@ -101,3 +104,5 @@ end
 # https://www.cybertec-postgresql.com/en/patroni-setting-up-a-highly-available-postgresql-cluster/
 # https://www.opsdash.com/blog/postgres-getting-started-patroni.html
 # https://www.alibabacloud.com/blog/how-to-set-up-a-highly-available-postgresql-cluster-using-patroni-on-ubuntu-16-04_594477
+
+# synchronous_node_count
